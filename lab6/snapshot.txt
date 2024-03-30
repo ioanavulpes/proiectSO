@@ -1,0 +1,5 @@
+we have the MAIN DIRECTORY testinit
+we have the inode number of the directory 6192449487931442
+Modification time of 2024-03-30 18:41:18
+
+we have the size of the directory 4096

@@ -12,6 +12,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include<dirent.h>
+#include<string.h>
+#include <unistd.h>
+#include <time.h>
+
 
 
 int main(int argc, char **argv){
@@ -55,6 +59,133 @@ int main(int argc, char **argv){
     {
         fprintf(stdout, "we HAVE a directory\n");  
     }
+
+    //we have a directory, we can start the monitoring
+
+    //we need to create a snapshot of the directory
+
+    //we need to create a file where we will store the snapshot
+
+   FILE *file = fopen("snapshot.txt", "wr");
+
+   if(file == NULL){
+       perror("nu s a putut deschide fisierul snapshot");
+       exit(-1);
+   }
+
+    //we need to write the name of the directory in the snapshot
+
+    // if(write(fileSnapshot, argv[1], strlen(argv[1])) < 0){
+    //     perror("nu s a putut scrie in fisierul snapshot");
+    //     exit(-1);
+    // }
+
+    fprintf(file, "we have the MAIN DIRECTORY ");
+    fprintf(file, "%s", argv[1]);
+
+    fprintf(file , "\n");
+
+
+
+    //code for writing the inode number of the directory in the snapshot
+
+    // if(write(fileSnapshot, &fileTest.st_ino, sizeof(fileTest.st_ino)) < 0){
+    //     perror("nu s a putut scrie in fisierul snapshot");
+    //     exit(-1);
+    // }
+
+    fprintf(file, "we have the inode number of the directory ");
+    fprintf(file, "%lu", (unsigned long)fileTest.st_ino);
+    fprintf(file , "\n");
+    //code for writing the last modification date of the directory in the snapshot
+
+
+    // if(write(fileSnapshot, &fileTest.st_mtime, sizeof(fileTest.st_mtime)) < 0){
+    //     perror("nu s a putut scrie in fisierul snapshot");
+    //     exit(-1);
+    // }
+
+    // fprintf(file, "we have the last modification date of the directory ");
+    // fprintf(file, "%lu", fileTest.st_mtime);
+    // fprintf(file , "\n");
+
+     time_t modification_time = fileTest.st_mtime;
+
+    // Convert modification time to a human-readable format
+    char time_buffer[80];
+    strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d %H:%M:%S", localtime(&modification_time));
+
+    // Print the modification time using fprintf
+    fprintf(file, "Modification time of %s\n", time_buffer);
+    fprintf(file , "\n");
+
+    //code for writing the size of the directory in the snapshot
+
+    // if(write(fileSnapshot, &fileTest.st_size, sizeof(fileTest.st_size)) < 0){
+    //     perror("nu s a putut scrie in fisierul snapshot");
+    //     exit(-1);
+    // }
+    
+    fprintf(file, "we have the size of the directory ");
+    fprintf(file, "%lu", fileTest.st_size);
+    fprintf(file , "\n");
+
+    // if(fclose(file) < 0){
+    //     perror("nu s a putut inchide fisierul snapshot");
+    //     exit(-1);
+    // }
+    //we need to close the file
+
+    // Open the file
+
+// if((fileSnapshot = open(file, O_RDWR)) < 0){
+//         perror("nu s a putut deschide fisierul snapshot");
+//         exit(-1);
+//     }
+// // Variables to store the data
+// char name[100];
+// ino_t inode;
+// time_t mtime;
+// off_t size;
+
+// // Read and print the name
+// read(fileSnapshot, name, sizeof(name));
+// printf("Directory: %s\n", name);
+
+// // Read and print the inode number
+// read(fileSnapshot, &inode, sizeof(inode));
+// printf("Inode number: %lu\n", inode);
+
+// // Read and print the last modification date
+// read(fileSnapshot, &mtime, sizeof(mtime));
+// char timebuf[26];
+// ctime_r(&mtime, timebuf);
+// printf("Last modification date: %s", timebuf);
+
+// // Read and print the size
+// read(fileSnapshot, &size, sizeof(size));
+// printf("Size: %ld bytes\n", size);
+
+// Close the file
+
+if(fclose(file) < 0){ 
+
+    perror("nu s a putut inchide fisierul snapshot");
+    exit(-1);
+}
+
+
+    if(closedir(directory) < 0){
+        perror("nu s a putut inchide directorul");
+        exit(-1);
+    }
+
+
+
+
+
+
+
 
 
 
