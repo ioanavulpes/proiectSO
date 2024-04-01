@@ -1,5 +1,7 @@
-we have the MAIN DIRECTORY testinit
-we have the inode number of the directory 6192449487931442
-Modification time of 2024-03-30 18:41:18
-
-we have the size of the directory 4096
+testinit
+nr inod
+6192449487931442
+data ultimei modificari
+2024-04-01 14:54:26
+dimensiune in bytes a fisierului
+4096
