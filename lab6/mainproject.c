@@ -23,7 +23,7 @@ void list_directory(const char *path) {
 
     if ((dir = opendir(path)) == NULL) {
         perror("nu se poate deschide directorul");
-        return;
+        exit(-1);
     }
 
     while ((entry = readdir(dir)) != NULL) {
@@ -31,7 +31,7 @@ void list_directory(const char *path) {
             continue; // skip . and ..
 
         sprintf(filePath, "%s/%s", path, entry->d_name); // create file path
-        if (stat(filePath, &fileStat) < 0) {
+        if (lstat(filePath, &fileStat) < 0) {
             perror("nu s a putut face stat");
             continue;
         }
@@ -45,7 +45,7 @@ void list_directory(const char *path) {
     }
 
 
-        sprintf(buffer, "Nume: %s\n", filePath);
+        sprintf(buffer, "Nume: %s\n", filePath);  //la nume trebuie sa punem calea completa
         if(write(fileD, buffer, strlen(buffer))<0)
         {
             perror("nu s a putut scrie in fisier");
@@ -66,13 +66,8 @@ void list_directory(const char *path) {
             exit(-1);   
         }
 
-        // printf("Nume: %s\n", entry->d_name);
-        // printf("Inode: %lu\n", fileStat.st_ino);
-        // printf("Dimensiune: %ld bytes\n", fileStat.st_size);
-
         char mod_time[20];
         strftime(mod_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&(fileStat.st_mtime)));
-        // printf("Data ultimei modificari: %s\n", mod_time);
         sprintf(buffer, "Data ultimei modificari: %s\n", mod_time);
         if(write(fileD, buffer, strlen(buffer))<0)
         {
@@ -93,9 +88,18 @@ void list_directory(const char *path) {
             list_directory(filePath); // recurse into subdirectory
         }
     }
+    if(close(fileD) < 0){
+    perror("nu s a putut inchide fisierul");
+    exit(-1);
+}
+
 
     closedir(dir);
 }
+
+//MAIN FUNCTION
+
+
 
 int main(int argc, char **argv){
 
@@ -116,7 +120,7 @@ int main(int argc, char **argv){
 
     struct stat fileTest;
 
-    if(lstat(argv[1], &fileTest) < 0){
+    if(lstat(argv[1], &fileTest) < 0){  // asta e ca sa pot accesa campurile cu info din structura de tip stat
         perror("nu s a putut face lstat");
         exit(-1);
     }

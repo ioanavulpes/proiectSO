@@ -45,3 +45,23 @@ Inode: 5629499534510173
 Dimensiune: 28 bytes
 Data ultimei modificari: 2024-04-01 16:51:02
 
+Nume: testinit/ioana.c
+Inode: 6192449487931443
+Dimensiune: 10 bytes
+Data ultimei modificari: 2024-04-01 14:53:56
+
+Nume: testinit/ioanac.txt
+Inode: 6473924464642114
+Dimensiune: 0 bytes
+Data ultimei modificari: 2024-04-01 14:54:26
+
+Nume: testinit/stefanita
+Inode: 7036874418063427
+Dimensiune: 4096 bytes
+Data ultimei modificari: 2024-04-01 16:50:38
+
+Nume: testinit/stefanita/flori.txt
+Inode: 5629499534510173
+Dimensiune: 28 bytes
+Data ultimei modificari: 2024-04-01 16:51:02
+
