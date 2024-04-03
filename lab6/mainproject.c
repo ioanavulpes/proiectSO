@@ -13,6 +13,19 @@
 #include <time.h>
 #include <string.h>
 
+//cerinta saptamana 7
+//se actulizeaza functionalitatea prog a i sa primeasca oricate arg, dar nu mai mult de 10
+//mentiune: niciun argument nu se va repeta
+//programul proceseaza doar directoare, alte tipuri de argumente vor fi ignorate
+//logica de captura a metadatele se va aplica la toate arg valide
+//doar pe directoare
+//in cazul care se dir se va modifica, utilizatorul va compara versiunea trecuta cu versiunea
+//actuala
+//daca exista diferenta, snapshotul vechi va fi modificat a i sa afiseze ultimele modificari
+//functionalitatea cod extinsa ca sa primeasca un arg suplimentar, care va fo directorul de iesire
+//in care vor fi stocate toate snapshoturile intrarile specificate in linia de comanda
+ 
+
 void list_directory(const char *path) {
     DIR *dir;
     struct dirent *entry;
@@ -58,6 +71,7 @@ void list_directory(const char *path) {
             perror("nu s a putut scrie in fisier");
             exit(-1);   
         }
+
 
         sprintf(buffer, "Dimensiune: %ld bytes\n", fileStat.st_size);
         if(write(fileD, buffer, strlen(buffer))<0)
@@ -237,6 +251,12 @@ if((write(fileDescriptor, sizeStr, strlen(sizeStr))) < 0){
         perror("nu s a putut scrie in fisier");
         exit(-1);   
     }
+// int n=6969;
+// if(write(fileDescriptor, &n, sizeof(int))<0)
+// {
+//     perror("nu s a putut scrie in fisier");
+//     exit(-1);   
+// }
 
 if(close(fileDescriptor) < 0){
     perror("nu s a putut inchide fisierul");
@@ -255,5 +275,8 @@ list_directory(argv[1]);
 
     return 0;
 }
+
+
+
 
 
