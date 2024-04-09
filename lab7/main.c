@@ -25,12 +25,30 @@
 //functionalitatea cod extinsa ca sa primeasca un arg suplimentar, care va fo directorul de iesire
 //in care vor fi stocate toate snapshoturile intrarile specificate in linia de comanda
 
+char out[1000] = "/mnt/d/Programare/SO/proiectSO/lab7/dirout";
+int cnt2=-1;
 
-void list_directory(const char *path){
+int is_directory_empty(const char *dirname) {
+    int n = 0;
+    struct dirent *d;
+    DIR *dir = opendir(dirname);
+    if (dir == NULL) //Not a directory or doesn't exist
+        return 1;
+    while ((d = readdir(dir)) != NULL) {
+        if(++n > 2)
+            break;
+    }
+    closedir(dir);
+    if (n <= 2) //Directory Empty
+        return 1;
+    else
+        return 0;
+}
 
-    char out[1000] = "/mnt/d/Programare/SO/proiectSO/lab7/dirout";
+void list_directory(const char *path)
+{
 
-    char ioana[100] = "snapshot";
+    char ioana[50] = "snapshot";
 
     char fileName[289];
 
@@ -70,12 +88,15 @@ void list_directory(const char *path){
     //if can open it, we read from it
 
     struct dirent *dir;
-    int cnt1=0;
+
     char filePath[100];
 
     char buffer[1024];
-    int cnt2=0;
+    cnt2++;
+    
+
     sprintf(fileName, "%s/%s.%d", out, ioana, cnt2);
+
 
     if((fileD = open(fileName, O_CREAT | O_WRONLY, S_IRUSR|S_IWUSR|S_IXUSR)) < 0)
         {
@@ -87,8 +108,10 @@ void list_directory(const char *path){
         if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0) {
             continue;
         } 
+        
 
         sprintf(filePath, "%s/%s", path, dir->d_name);
+
 
         //fac stat pe ce am primit
 
@@ -97,7 +120,7 @@ void list_directory(const char *path){
             exit(-1);
         }
 
-        cnt2++;  
+         
 
          if(write(fileD, filePath, strlen(filePath)) < 0){
 
@@ -142,19 +165,21 @@ void list_directory(const char *path){
 
          if (S_ISDIR(info.st_mode)) 
             list_directory(filePath); // recurse into subdirectory
+    
         
     }
-    if(close(fileD) < 0){
-    perror("nu s a putut inchide fisierul");
-    exit(-1);
-    }
+    
+        if(close(fileD) < 0){
+        perror("nu s a putut inchide fisierul");
+        exit(-1);
+        }
 
 
-    if(closedir(d1) != 0)
-    {
-        perror("error at closing the directory");
-        exit(-1);   
-    }
+        if(closedir(d1) != 0)
+        {
+            perror("error at closing the directory");
+            exit(-1);   
+        }
 
 }
 
@@ -162,13 +187,13 @@ void list_directory(const char *path){
 int main(int argc, char **argv){
 
 
-// ./p dir0 dir1 .. dir9 -o dirout 
+    // ./p dir0 dir1 .. dir9 -o dirout 
     if(argc > 13){
         perror("we have too much arguments\n");
         exit(-1);
     }   
 
-   //first, i have to find the out directory
+    //first, i have to find the out directory
 
     int out=-1;
    for(int i=0; i<argc; i++){
