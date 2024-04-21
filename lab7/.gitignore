@@ -12,6 +12,6 @@ mainproject.c
 mainproject1.c
 main.c
 p
-main1
+main1.c
 *.txt
-*.c
+
