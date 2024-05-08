@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <string.h>
+#include <sys/wait.h>
 
 #define BUFFER 1024
 
@@ -261,9 +262,17 @@ void list_directory(const char *path, int fileD)
     }
 }
 
+typedef struct
+{
+    pid_t pid;
+    int exit_code;
+} ChildProcess;
+
 int main(int argc, char **argv)
 {
     SnapInfo snaps[30];
+    ChildProcess children[argc];
+    int num_children = 0;
 
     for (int i = 0; i < argc; i++)
     {
@@ -299,6 +308,22 @@ int main(int argc, char **argv)
         fprintf(stderr, "-o not found or does not have a value\n");
     }
 
+    int contor = 0;
+
+    for (int i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "-o") != 0)
+        {
+            contor++;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    printf("\nla noi in linie de comanda au fost date %d argumente pentru care se vor creea fii\n\n", contor);
+
     for (int i = 1; i < argc; i++)
     {
         for (int j = i + 1; j < argc; j++)
@@ -312,60 +337,102 @@ int main(int argc, char **argv)
 
         if (strcmp(argv[i], "-o") != 0)
         {
-
-            struct stat test;
-
-            sprintf(snaps[i].actualsnap, "%s/%s.%d", argv[out], "snapshot", i);
-
-            if (lstat(snaps[i].actualsnap, &test) == 0) // inseamna ca fisierul a existat inainte
-            {
-                printf("a mai fost creat o data FISIERU ASTA\n");
-                sprintf(snaps[i].previoussnap, "%s/%s.%d", argv[out], "snapshotp", i);
-                copiere_snap(snaps[i].actualsnap, snaps[i].previoussnap);
-            }
-            else
-            {
-                printf("e prima data cand se creeaza\n");
-            }
-
-            // daca a existat inainte
-
-            int fileD = open(snaps[i].actualsnap, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IXUSR);
-            if (fileD < 0)
-            {
-                perror("nu s a putut deschide fisierul\n");
-                exit(-1);
-            }
-
-            list_directory(argv[i], fileD); // pass the file descriptor to the function
-
-            if (close(fileD) < 0)
-            {
-                perror("nu s a putut inchide fisierul\n");
-                exit(-1);
-            }
-
-            if (snaps[i].previoussnap[0] != '\0')
+            pid_t pid = fork();
+            if (pid == 0)
             {
 
-                if (compare_snaps(snaps[i].actualsnap, snaps[i].previoussnap) == 0)
+                struct stat test;
+
+                sprintf(snaps[i].actualsnap, "%s/%s.%d", argv[out], "snapshot", i);
+
+                if (lstat(snaps[i].actualsnap, &test) == 0) // inseamna ca fisierul a existat inainte
                 {
-                    printf("\nsnapshot ul pentru directorul %d este IDENTIC\n", i);
+                    printf("a mai fost creat o data FISIERU ASTA\n");
+                    sprintf(snaps[i].previoussnap, "%s/%s.%d", argv[out], "snapshotp", i);
+                    copiere_snap(snaps[i].actualsnap, snaps[i].previoussnap);
                 }
                 else
                 {
-                    printf("\nsnapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!!\n", i);
+                    printf("e prima data cand se creeaza\n");
                 }
+
+                // daca a existat inainte
+
+                int fileD = open(snaps[i].actualsnap, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IXUSR);
+                if (fileD < 0)
+                {
+                    perror("nu s a putut deschide fisierul\n");
+                    exit(-1);
+                }
+
+                list_directory(argv[i], fileD); // pass the file descriptor to the function
+
+                if (close(fileD) < 0)
+                {
+                    perror("nu s a putut inchide fisierul\n");
+                    exit(-1);
+                }
+
+                if (snaps[i].previoussnap[0] != '\0')
+                {
+
+                    if (compare_snaps(snaps[i].actualsnap, snaps[i].previoussnap) == 0)
+                    {
+                        printf("\nsnapshot ul pentru directorul %d este IDENTIC\n", i);
+                    }
+                    else
+                    {
+                        printf("\nsnapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!!\n", i);
+                    }
+                }
+                else
+                {
+                    printf("\ne prima data cand creem snapshot uri si nu avem PRECEDENTE\n\n");
+                }
+                exit(0);
+            }
+            else if (pid > 0)
+            {
+                children[num_children].pid = pid;
+                num_children++;
             }
             else
             {
-                printf("\ne prima data cand creem snapshot uri si nu avem PRECEDENTE\n\n");
+                fprintf(stderr, "eroare la FORK()");
+                exit(EXIT_FAILURE);
             }
         }
         else
         {
             break;
         }
+    }
+
+    // Wait for child processes to finish
+    for (int i = 0; i < num_children; i++)
+    {
+        int status;
+        pid_t pid = waitpid(children[i].pid, &status, 0);
+        if (pid == -1)
+        {
+            perror("waitpid");
+            exit(EXIT_FAILURE);
+        }
+        // Store the exit code of the child process
+        if (WIFEXITED(status))
+        {
+            children[i].exit_code = WEXITSTATUS(status);
+        }
+        else
+        {
+            children[i].exit_code = -1; // Indicate that the child process did not exit normally
+        }
+    }
+
+    // Print the PID and exit code of each child process
+    for (int i = 0; i < num_children; i++)
+    {
+        printf("Child process %d terminated with pid %d and exit code %d.\n", i, children[i].pid, children[i].exit_code);
     }
 
     return 0;
