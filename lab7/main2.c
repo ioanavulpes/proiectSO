@@ -142,7 +142,7 @@ int compare_snaps(const char *snap1, const char *snap2)
     return 0;
 }
 
-void list_directory(const char *path, int fileD)
+void list_directory(const char *path, int fileD, const char *safe)
 {
 
     // i have to open and test the directory
@@ -196,6 +196,7 @@ void list_directory(const char *path, int fileD)
         {
             continue;
         }
+        
 
         sprintf(filePath, "%s/%s", path, dir->d_name);
 
@@ -206,6 +207,29 @@ void list_directory(const char *path, int fileD)
             perror("the function lstat doesn t work 2\n");
             exit(-1);
         }
+
+    //verific daca n am drepturi de acces
+    if(S_ISREG(info.st_mode)) {
+    //verific daca n am drepturi de acces
+    if (!(info.st_mode & (S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH))) {
+        printf("No permissions set for file %s\n", filePath);
+
+        
+        pid_t pid = fork(); // Create a child process
+
+        if (pid < 0) {
+            perror("Fork failed");
+            exit(-1);
+        }
+
+        if (pid == 0) { // This block will be executed by the child process
+            execl("/mnt/d/Programare/SO/proiectSO/lab7", "verify_for_malitious.sh", filePath, NULL); // Replace "/path/to/your/script" with the actual path to your script
+            perror("execl failed"); // This line will only be executed if execl fails
+            exit(-1); // Terminate the child process if execl fails
+        }
+
+    }
+} 
 
         if (write(fileD, filePath, strlen(filePath)) < 0)
         {
@@ -252,7 +276,7 @@ void list_directory(const char *path, int fileD)
         }
 
         if (S_ISDIR(info.st_mode))
-            list_directory(filePath, fileD); // recurse into subdirectory
+            list_directory(filePath, fileD, safe); // recurse into subdirectory
     }
 
     if (closedir(d1) != 0)
@@ -308,6 +332,22 @@ int main(int argc, char **argv)
         fprintf(stderr, "-o not found or does not have a value\n");
     }
 
+    //cod pentru ca sa gasesc fisierul malitios
+     char* malicious_dir = NULL;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-x") == 0 && i + 1 < argc) {
+            malicious_dir = argv[i + 1];
+            break;
+        }
+    }
+
+    if (malicious_dir == NULL) {
+        fprintf(stderr, "No malicious directory specified\n");
+        exit(EXIT_FAILURE);
+    }
+
+
     int contor = 0;
 
     for (int i = 1; i < argc; i++)
@@ -341,6 +381,8 @@ int main(int argc, char **argv)
             if (pid == 0)
             {
 
+                //sunt in copil aici
+
                 struct stat test;
 
                 sprintf(snaps[i].actualsnap, "%s/%s.%d", argv[out], "snapshot", i);
@@ -365,7 +407,7 @@ int main(int argc, char **argv)
                     exit(-1);
                 }
 
-                list_directory(argv[i], fileD); // pass the file descriptor to the function
+                list_directory(argv[i], fileD, malicious_dir); // pass the file descriptor to the function
 
                 if (close(fileD) < 0)
                 {
@@ -409,31 +451,37 @@ int main(int argc, char **argv)
     }
 
     // Wait for child processes to finish
-    for (int i = 0; i < num_children; i++)
-    {
-        int status;
-        pid_t pid = waitpid(children[i].pid, &status, 0);
-        if (pid == -1)
-        {
-            perror("waitpid");
-            exit(EXIT_FAILURE);
-        }
-        // Store the exit code of the child process
-        if (WIFEXITED(status))
-        {
-            children[i].exit_code = WEXITSTATUS(status);
-        }
-        else
-        {
-            children[i].exit_code = -1; // Indicate that the child process did not exit normally
-        }
-    }
+int status;
+pid_t pid;
 
-    // Print the PID and exit code of each child process
+while ((pid = wait(&status)) != -1) // This will wait for any child process to end
+{
+    // Find the child in the children array
     for (int i = 0; i < num_children; i++)
     {
-        printf("Child process %d terminated with pid %d and exit code %d.\n", i, children[i].pid, children[i].exit_code);
+        if (children[i].pid == pid)
+        {
+            // Store the exit code of the child process
+            if (WIFEXITED(status))
+            {
+                children[i].exit_code = WEXITSTATUS(status);
+            }
+            else
+            {
+                children[i].exit_code = -1; // Indicate that the child process did not exit normally
+            }
+            break;
+        }
     }
+}
+
+// Print the PID and exit code of each child process
+for (int i = 0; i < num_children; i++)
+{
+    printf("Child process %d terminated with pid %d and exit code %d.\n", i, children[i].pid, children[i].exit_code);
+}
+
+return 0;
 
     return 0;
 }
