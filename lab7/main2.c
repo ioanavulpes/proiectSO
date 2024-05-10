@@ -136,6 +136,29 @@ int compare_snaps(const char *snap1, const char *snap2)
     return 0;
 }
 
+void getPermissionsString(mode_t mode, char *buffer) {
+    // Verificăm dacă este un director sau fișier
+    buffer[0] = (S_ISDIR(mode)) ? 'd' : '-';
+
+    // Permisiunile pentru utilizator
+    buffer[1] = (mode & S_IRUSR) ? 'r' : '-';
+    buffer[2] = (mode & S_IWUSR) ? 'w' : '-';
+    buffer[3] = (mode & S_IXUSR) ? 'x' : '-';
+
+    // Permisiunile pentru grup
+    buffer[4] = (mode & S_IRGRP) ? 'r' : '-';
+    buffer[5] = (mode & S_IWGRP) ? 'w' : '-';
+    buffer[6] = (mode & S_IXGRP) ? 'x' : '-';
+
+    // Permisiunile pentru alții
+    buffer[7] = (mode & S_IROTH) ? 'r' : '-';
+    buffer[8] = (mode & S_IWOTH) ? 'w' : '-';
+    buffer[9] = (mode & S_IXOTH) ? 'x' : '-';
+
+    buffer[10] = '\0'; // pentru terminarea șirului
+}
+
+
 void list_directory(const char *path, int fileD, const char *safe, int *contor)
 {
     // i have to open and test the directory
@@ -172,7 +195,7 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
 
     struct dirent *dir;
     char filePath[1000];
-    char buffer[1024];
+    char buffer[10000];
 
     while ((dir = readdir(d1)) != NULL)
     {
@@ -296,8 +319,28 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
             perror("error at writing the number of the inode\n");
             exit(-1);
         }
+
+        //we write the permission
+
+        char *text = "The PERMISSIONS are:\n";
+         if (write(fileD, text, strlen(text)) < 0)
+        {
+            perror("error at writing of the number of the byte's file");
+            exit(-1);
+        }
+
+        getPermissionsString(info.st_mode, buffer);
+        
+         if (write(fileD, buffer, strlen(buffer)) < 0)
+        {
+            perror("error at writing of the number of the byte's file");
+            exit(-1);
+        }
+        
+        
+
         // we have to write the dim in bytes
-        sprintf(buffer, "Number of bytes: %lu\n", info.st_size);
+        sprintf(buffer, "\nNumber of bytes: %lu\n", info.st_size);
 
         if (write(fileD, buffer, strlen(buffer)) < 0)
         {
@@ -308,7 +351,7 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
         // the last date when you modified the file
         char mod_time[20];
         strftime(mod_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&(info.st_mtime)));
-        sprintf(buffer, "Data ultimei modificari: %s\n", mod_time);
+        sprintf(buffer, "Last modify: %s\n", mod_time);
 
         if (write(fileD, buffer, strlen(buffer)) < 0)
         {
@@ -316,6 +359,7 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
             exit(-1);
         }
 
+        //ca sa mi puna space dupa ce a scris info despre in fisier si vine recursiv altu
         char *space = "\n";
         if (write(fileD, space, strlen(space)) < 0)
         {
