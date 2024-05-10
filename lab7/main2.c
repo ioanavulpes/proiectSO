@@ -23,9 +23,7 @@ typedef struct
 } SnapInfo;
 
 // cum fac sa am comparare de snapshot
-
 // pasii in fct de compare
-
 // o fac int daca da 1 sunt diferite
 // 0 identice
 
@@ -35,8 +33,6 @@ void copiere_snap(const char *file1, const char *file2)
     int fd1, fd2;
     ssize_t bytes_read1, bytes_write2;
     char buf1[BUFFER];
-    char buf2[BUFFER];
-
     if ((fd1 = open(file1, O_RDONLY)) < 0)
     {
         perror("eroare deschidere fisier1");
@@ -79,13 +75,11 @@ void copiere_snap(const char *file1, const char *file2)
 
 int compare_snaps(const char *snap1, const char *snap2)
 {
-
     // strcpy(snap2, snap1);
     //  prima data trebuie deschise ambele
     //  le deschid doar pentru citire pentru ca deja le am create cu continut
 
     int fd1, fd2;
-
     if ((fd1 = open(snap1, O_RDONLY)) < 0)
     {
         perror("eroare deschide primu snap1");
@@ -112,19 +106,18 @@ int compare_snaps(const char *snap1, const char *snap2)
                 perror("eroare inchidere fisier 1");
                 // return 1; //diferite
             }
+
             if (close(fd2) < 0)
             {
                 perror("eroare inchidere fisier 1");
                 // return 1;
             }
-
             return 1;
         }
 
         // verificare daca am citit tot din fisier
         // read da return 0 daca s a ajuns la capat de fisier
     }
-
     // if ((bytes_read1 = read(fd1, buf1, BUFFER)) != (bytes_read2 = read(fd2, buf2, BUFFER)))
     // {
     //     return 1;
@@ -134,6 +127,7 @@ int compare_snaps(const char *snap1, const char *snap2)
     {
         perror("eroare inchidere fisier 1");
     }
+
     if (close(fd2) < 0)
     {
         perror("eroare inchidere fisier 2");
@@ -142,14 +136,11 @@ int compare_snaps(const char *snap1, const char *snap2)
     return 0;
 }
 
-void list_directory(const char *path, int fileD, const char *safe)
+void list_directory(const char *path, int fileD, const char *safe, int *contor)
 {
-
     // i have to open and test the directory
     struct stat info;
-
     // int fileD;
-
     if (lstat(path, &info) < 0)
     {
         perror("the function lstat doesn t work 1\n");
@@ -157,7 +148,6 @@ void list_directory(const char *path, int fileD, const char *safe)
     }
 
     // S_ISDIR = 1 -> true, adica avem director
-
     if (S_ISDIR(info.st_mode))
     {
         fprintf(stdout, "we receive a directory\n");
@@ -172,34 +162,26 @@ void list_directory(const char *path, int fileD, const char *safe)
     }
 
     // if is a directory, we have to open it
-
     DIR *d1;
-
     if ((d1 = opendir(path)) == NULL)
     {
         perror("we can t open the directory");
         exit(-1);
     }
-
     // if can open it, we read from it
 
     struct dirent *dir;
-
-    char filePath[100];
-
+    char filePath[1000];
     char buffer[1024];
 
     while ((dir = readdir(d1)) != NULL)
     {
-
         if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
         {
             continue;
         }
-        
 
         sprintf(filePath, "%s/%s", path, dir->d_name);
-
         // fac stat pe ce am primit
 
         if (lstat(filePath, &info) < 0)
@@ -208,32 +190,101 @@ void list_directory(const char *path, int fileD, const char *safe)
             exit(-1);
         }
 
-    //verific daca n am drepturi de acces
-    if(S_ISREG(info.st_mode)) {
-    //verific daca n am drepturi de acces
-    if (!(info.st_mode & (S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH))) {
-        printf("No permissions set for file %s\n", filePath);
+        // verific daca n am drepturi de acces
+        if (S_ISREG(info.st_mode))
+        {
+            // verific daca n am drepturi de acces
+            if (!(info.st_mode & (S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH)))
+            {
+                printf("No permissions set for file %s\n", filePath);
+                // Creăm pipe pentru comunicare între procese
+                int pipe_fd[2];
+                if (pipe(pipe_fd) == -1)
+                {
+                    perror("Pipe creation failed");
+                    exit(EXIT_FAILURE);
+                }
 
-        
-        pid_t pid = fork(); // Create a child process
+                pid_t pid = fork();
+                if (pid == 0)
+                {
+                    // Închiderea părții de citire a pipe-ului în procesul copil
+                    close(pipe_fd[0]);
 
-        if (pid < 0) {
-            perror("Fork failed");
-            exit(-1);
+                    // Executăm script-ul pentru verificare
+                    dup2(pipe_fd[1], STDOUT_FILENO); // Redirecționăm stdout către pipe
+                    execl("/bin/bash", "sh", "verify_for_malitious.sh", filePath, NULL);
+                    perror("Error executing sh");
+                    exit(EXIT_FAILURE);
+                }
+                else if (pid > 0)
+                {
+                    // Închiderea părții de scriere a pipe-ului în procesul părinte
+                    close(pipe_fd[1]);
+
+                    char buffer[256];
+                    ssize_t nbytes = read(pipe_fd[0], buffer, sizeof(buffer));
+                    if (nbytes > 0)
+                    {
+                        buffer[nbytes] = '\0';
+                        // Verificăm dacă fișierul este periculos
+                        if (strcmp(buffer, "SAFE\n") != 0)
+                        {
+                            (*contor)++;
+                            printf("Proces PID:%d a găsit un fișier periculos: %s\n", pid, filePath);
+                            // printf("%s", buffer);
+                            //  Mutăm fișierul în directorul izolat
+                            ///////////////////////////////////////////////////////
+                            pid_t pid = fork();
+
+                            if (pid < 0)
+                            { // Eroare la crearea procesului copil
+                                perror("Error forking process");
+                                exit(EXIT_FAILURE);
+                            }
+                            else if (pid == 0)
+                            { // În procesul copil
+                                // Construiește calea completă a fișierului de destinație
+                               
+                                // Execută comanda mv
+                                execl("/bin/mv", "mv", filePath, safe, (char *)NULL);
+
+                                // Dacă execl eșuează, afișează mesajul de eroare și ieși
+                                perror("Error executing mv");
+                                exit(EXIT_FAILURE);
+                            }
+                            else
+                            { // În procesul părinte
+                                // Așteaptă finalizarea procesului copil
+                                int status;
+                                waitpid(pid, &status, 0);
+                                if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+                                {
+                                    printf("Failed to move the file\n");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            printf("Proces PID:%d a verificat și nu este periculos: %s\n", pid, filePath);
+                        }
+                    }
+
+                    // Așteptăm terminarea procesului copil
+                    int status;
+                    waitpid(pid, &status, 0);
+                    printf("Procesul copil s-a încheiat cu PID:%d și status:%d\n", pid, WEXITSTATUS(status));
+                }
+                else
+                {
+                    perror("Error forking process");
+                    exit(EXIT_FAILURE);
+                }
+            }
         }
-
-        if (pid == 0) { // This block will be executed by the child process
-            execl("/mnt/d/Programare/SO/proiectSO/lab7", "verify_for_malitious.sh", filePath, NULL); // Replace "/path/to/your/script" with the actual path to your script
-            perror("execl failed"); // This line will only be executed if execl fails
-            exit(-1); // Terminate the child process if execl fails
-        }
-
-    }
-} 
 
         if (write(fileD, filePath, strlen(filePath)) < 0)
         {
-
             perror("error at writing the name of the file\n"); // we are writing the name of the directory or file
             exit(-1);
         }
@@ -245,10 +296,9 @@ void list_directory(const char *path, int fileD, const char *safe)
             perror("error at writing the number of the inode\n");
             exit(-1);
         }
-
         // we have to write the dim in bytes
-
         sprintf(buffer, "Number of bytes: %lu\n", info.st_size);
+
         if (write(fileD, buffer, strlen(buffer)) < 0)
         {
             perror("error at writing of the number of the byte's file");
@@ -256,7 +306,6 @@ void list_directory(const char *path, int fileD, const char *safe)
         }
 
         // the last date when you modified the file
-
         char mod_time[20];
         strftime(mod_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&(info.st_mtime)));
         sprintf(buffer, "Data ultimei modificari: %s\n", mod_time);
@@ -268,7 +317,6 @@ void list_directory(const char *path, int fileD, const char *safe)
         }
 
         char *space = "\n";
-
         if (write(fileD, space, strlen(space)) < 0)
         {
             perror("nu s a putut scrie in fisier");
@@ -276,7 +324,7 @@ void list_directory(const char *path, int fileD, const char *safe)
         }
 
         if (S_ISDIR(info.st_mode))
-            list_directory(filePath, fileD, safe); // recurse into subdirectory
+            list_directory(filePath, fileD, safe, contor); // recurse into subdirectory
     }
 
     if (closedir(d1) != 0)
@@ -297,7 +345,7 @@ int main(int argc, char **argv)
     SnapInfo snaps[30];
     ChildProcess children[argc];
     int num_children = 0;
-
+    int numar;
     for (int i = 0; i < argc; i++)
     {
         if (strcmp(argv[i], "-o") != 0)
@@ -332,24 +380,25 @@ int main(int argc, char **argv)
         fprintf(stderr, "-o not found or does not have a value\n");
     }
 
-    //cod pentru ca sa gasesc fisierul malitios
-     char* malicious_dir = NULL;
+    // cod pentru ca sa gasesc fisierul malitios
 
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-x") == 0 && i + 1 < argc) {
+    char *malicious_dir = NULL;
+    for (int i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "-x") == 0 && i + 1 < argc)
+        {
             malicious_dir = argv[i + 1];
             break;
         }
     }
-
-    if (malicious_dir == NULL) {
+    printf("director pt alea RELE este %s", malicious_dir);
+    if (malicious_dir == NULL)
+    {
         fprintf(stderr, "No malicious directory specified\n");
         exit(EXIT_FAILURE);
     }
 
-
     int contor = 0;
-
     for (int i = 1; i < argc; i++)
     {
         if (strcmp(argv[i], "-o") != 0)
@@ -377,16 +426,14 @@ int main(int argc, char **argv)
 
         if (strcmp(argv[i], "-o") != 0)
         {
+            //int contor;
+            numar = 0;
             pid_t pid = fork();
             if (pid == 0)
             {
-
-                //sunt in copil aici
-
+                // sunt in copil aici
                 struct stat test;
-
                 sprintf(snaps[i].actualsnap, "%s/%s.%d", argv[out], "snapshot", i);
-
                 if (lstat(snaps[i].actualsnap, &test) == 0) // inseamna ca fisierul a existat inainte
                 {
                     printf("a mai fost creat o data FISIERU ASTA\n");
@@ -398,6 +445,8 @@ int main(int argc, char **argv)
                     printf("e prima data cand se creeaza\n");
                 }
 
+                 //printf("\n\n!!!NUMARUL de fisiere CORUPTE in directorul %s este: %d\n", argv[i], numar);
+
                 // daca a existat inainte
 
                 int fileD = open(snaps[i].actualsnap, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IXUSR);
@@ -407,8 +456,10 @@ int main(int argc, char **argv)
                     exit(-1);
                 }
 
-                list_directory(argv[i], fileD, malicious_dir); // pass the file descriptor to the function
+                list_directory(argv[i], fileD, malicious_dir, &numar); // pass the file descriptor to the function
+                printf("\n\n!!!NUMARUL de fisiere CORUPTE in directorul %s este: %d\n", argv[i], numar);
 
+                printf("SNAPSHOT FOR DIRECTORY %d IS SUCCESFULLY CREATED\n\n", i);
                 if (close(fileD) < 0)
                 {
                     perror("nu s a putut inchide fisierul\n");
@@ -417,7 +468,6 @@ int main(int argc, char **argv)
 
                 if (snaps[i].previoussnap[0] != '\0')
                 {
-
                     if (compare_snaps(snaps[i].actualsnap, snaps[i].previoussnap) == 0)
                     {
                         printf("\nsnapshot ul pentru directorul %d este IDENTIC\n", i);
@@ -451,37 +501,36 @@ int main(int argc, char **argv)
     }
 
     // Wait for child processes to finish
-int status;
-pid_t pid;
 
-while ((pid = wait(&status)) != -1) // This will wait for any child process to end
-{
-    // Find the child in the children array
-    for (int i = 0; i < num_children; i++)
+    int status;
+    pid_t pid;
+
+    while ((pid = wait(&status)) != -1) // This will wait for any child process to end
     {
-        if (children[i].pid == pid)
+        // Find the child in the children array
+        for (int i = 0; i < num_children; i++)
         {
-            // Store the exit code of the child process
-            if (WIFEXITED(status))
+            if (children[i].pid == pid)
             {
-                children[i].exit_code = WEXITSTATUS(status);
+                // Store the exit code of the child process
+                if (WIFEXITED(status))
+                {
+                    children[i].exit_code = WEXITSTATUS(status);
+                }
+                else
+                {
+                    children[i].exit_code = -1; // Indicate that the child process did not exit normally
+                }
+                break;
             }
-            else
-            {
-                children[i].exit_code = -1; // Indicate that the child process did not exit normally
-            }
-            break;
         }
     }
-}
 
-// Print the PID and exit code of each child process
-for (int i = 0; i < num_children; i++)
-{
-    printf("Child process %d terminated with pid %d and exit code %d.\n", i, children[i].pid, children[i].exit_code);
-}
+    // Print the PID and exit code of each child process
 
-return 0;
-
+    for (int i = 0; i < num_children; i++)
+    {
+        printf("Child process %d terminated with pid %d and exit code %d.\n", i, children[i].pid, children[i].exit_code);
+    }
     return 0;
 }
