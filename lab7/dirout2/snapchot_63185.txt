@@ -1,0 +1,6 @@
+ DIR ioana3	: Dimensiune 4096 bytes , inode number 63185 , Time of last modification Fri May 10 19:53:03 2024
+
+       DIR ioana3/IOANA	: Dimensiune 4096 bytes , inode number 67857 , Time of last modification Fri May 10 21:21:44 2024
+
+ FILE ioana3/vulpesi.c	: Dimensiune 0 bytes ,  inode number 64108 , Time of last modification Fri May 10 19:46:21 2024
+

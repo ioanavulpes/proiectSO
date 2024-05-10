@@ -136,7 +136,8 @@ int compare_snaps(const char *snap1, const char *snap2)
     return 0;
 }
 
-void getPermissionsString(mode_t mode, char *buffer) {
+void getPermissionsString(mode_t mode, char *buffer)
+{
     // Verificăm dacă este un director sau fișier
     buffer[0] = (S_ISDIR(mode)) ? 'd' : '-';
 
@@ -157,7 +158,6 @@ void getPermissionsString(mode_t mode, char *buffer) {
 
     buffer[10] = '\0'; // pentru terminarea șirului
 }
-
 
 void list_directory(const char *path, int fileD, const char *safe, int *contor)
 {
@@ -268,7 +268,7 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
                             else if (pid == 0)
                             { // În procesul copil
                                 // Construiește calea completă a fișierului de destinație
-                               
+
                                 // Execută comanda mv
                                 execl("/bin/mv", "mv", filePath, safe, (char *)NULL);
 
@@ -320,24 +320,22 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
             exit(-1);
         }
 
-        //we write the permission
+        // we write the permission
 
         char *text = "The PERMISSIONS are:\n";
-         if (write(fileD, text, strlen(text)) < 0)
+        if (write(fileD, text, strlen(text)) < 0)
         {
             perror("error at writing of the number of the byte's file");
             exit(-1);
         }
 
         getPermissionsString(info.st_mode, buffer);
-        
-         if (write(fileD, buffer, strlen(buffer)) < 0)
+
+        if (write(fileD, buffer, strlen(buffer)) < 0)
         {
             perror("error at writing of the number of the byte's file");
             exit(-1);
         }
-        
-        
 
         // we have to write the dim in bytes
         sprintf(buffer, "\nNumber of bytes: %lu\n", info.st_size);
@@ -359,7 +357,7 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
             exit(-1);
         }
 
-        //ca sa mi puna space dupa ce a scris info despre in fisier si vine recursiv altu
+        // ca sa mi puna space dupa ce a scris info despre in fisier si vine recursiv altu
         char *space = "\n";
         if (write(fileD, space, strlen(space)) < 0)
         {
@@ -390,6 +388,7 @@ int main(int argc, char **argv)
     ChildProcess children[argc];
     int num_children = 0;
     int numar;
+
     for (int i = 0; i < argc; i++)
     {
         if (strcmp(argv[i], "-o") != 0)
@@ -457,6 +456,12 @@ int main(int argc, char **argv)
 
     printf("\nla noi in linie de comanda au fost date %d argumente pentru care se vor creea fii\n\n", contor);
 
+    FILE *file = fopen("trashusefull.txt", "w"); // Deschideți fișierul pentru adăugare de conținut
+    if (file == NULL)
+    {
+        perror("Eroare la deschiderea fișierului pentru scriere");
+        exit(EXIT_FAILURE);
+    }
     for (int i = 1; i < argc; i++)
     {
         for (int j = i + 1; j < argc; j++)
@@ -470,7 +475,7 @@ int main(int argc, char **argv)
 
         if (strcmp(argv[i], "-o") != 0)
         {
-            //int contor;
+            // int contor;
             numar = 0;
             pid_t pid = fork();
             if (pid == 0)
@@ -489,7 +494,7 @@ int main(int argc, char **argv)
                     printf("e prima data cand se creeaza\n");
                 }
 
-                 //printf("\n\n!!!NUMARUL de fisiere CORUPTE in directorul %s este: %d\n", argv[i], numar);
+                // printf("\n\n!!!NUMARUL de fisiere CORUPTE in directorul %s este: %d\n", argv[i], numar);
 
                 // daca a existat inainte
 
@@ -510,21 +515,34 @@ int main(int argc, char **argv)
                     exit(-1);
                 }
 
+                //    FILE *file = fopen("trashusefull.txt", "w"); // Deschideți fișierul pentru adăugare de conținut
+                //     if (file == NULL) {
+                //         perror("Eroare la deschiderea fișierului pentru scriere");
+                //         exit(EXIT_FAILURE);
+                //     }
                 if (snaps[i].previoussnap[0] != '\0')
                 {
+
                     if (compare_snaps(snaps[i].actualsnap, snaps[i].previoussnap) == 0)
                     {
-                        printf("\nsnapshot ul pentru directorul %d este IDENTIC\n", i);
+                        // printf("\nsnapshot ul pentru directorul %d este IDENTIC\n", i);
+
+                        fprintf(file, "\nIDENTIC CU CEL ANTERIOR\n");
                     }
                     else
                     {
-                        printf("\nsnapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!!\n", i);
+                        // printf("\nsnapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!!\n", i);
+
+                        fprintf(file, "\nsnapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!!\n", i);
                     }
                 }
                 else
                 {
-                    printf("\ne prima data cand creem snapshot uri si nu avem PRECEDENTE\n\n");
+                    // printf("\ne prima data cand creem snapshot uri si nu avem PRECEDENTE\n\n");
+                    fprintf(file, "\ne prima data cand creem snapshot uri si nu avem PRECEDENTE\n\n");
                 }
+
+                fclose(file);
                 exit(0);
             }
             else if (pid > 0)

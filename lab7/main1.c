@@ -1,373 +1,391 @@
-#include <stdio.h>
-#include <stdlib.h>
+/*
+Proiectul vizează dezvoltarea unui sistem de monitorizare a modificărilor în directoare, 
+oferind utilizatorului capacitatea de a crea instantanee (snapshots) 
+pentru a urmări evoluția acestora în timp. Utilizatorii vor specifica directorul țintă prin linia de comandă,
+iar programul va detecta și urmări schimbările survenite, inclusiv în subdirectoarele sale. 
+Schimbările monitorizate includ redenumiri, ștergeri, modificări de dimensiune, variații în numărul de legături 
+și ajustări de permisiuni. La fiecare execuție, programul va actualiza snapshot-ul directorului, 
+salvând metadate relevante pentru fiecare fișier sau subdirector, cum ar fi 
+
+numele, identificatorul inode, dimensiunea și data ultimei modificări. 
+
+În cazul identificării unui snapshot anterior, programul va compara
+datele actuale cu cele vechi, actualizând sau înlocuind snapshot-ul după necesitate. 
+Abordarea exactă de salvare și gestionare a snapshot-urilor este lăsată la discreția dezvoltatorilor, 
+fie că optează pentru stocarea unui snapshot în fiecare director monitorizat, 
+fie pentru crearea unei ierarhii separate. Se încurajează furnizarea de exemple de input și output pentru a ghida dezvoltatorii,
+menținând totodată un grad de flexibilitate în implementare pentru a evita soluții uniforme. 
+Proiectul încurajează inovația și auto-gestionarea resurselor, oferind studenților libertatea de a 
+explora diverse metode de realizare a sarcinilor specificate.
+   */
+
+
+/*pt fiecare argument primit in linia de comanda se va crea un proces separat 
+care sa se ocupe de argumentul respectiv
+
+numele snapchot-ul va contine i_node number
+
+*/
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <dirent.h>
 #include <string.h>
+#include <errno.h>
+#include <dirent.h>
 #include <unistd.h>
-#include <time.h>
-#include <stdio.h>
-#include <dirent.h>
 #include <sys/stat.h>
+#include <limits.h>
+#include <fcntl.h>
 #include <time.h>
-#include <string.h>
+#include<sys/wait.h>
 
-#define BUFFER 1024
+//adaug data ultimei modificari step1
 
-typedef struct
-{
-    char actualsnap[30];
-    char previoussnap[30];
-} SnapInfo;
 
-// cum fac sa am comparare de snapshot
-
-// pasii in fct de compare
-
-// o fac int daca da 1 sunt diferite
-// 0 identice
-
-void copiere_snap(const char *file1, const char *file2)
-{
-
-    int fd1, fd2;
-    ssize_t bytes_read1, bytes_write2;
-    char buf1[BUFFER];
-    char buf2[BUFFER];
-
-    if ((fd1 = open(file1, O_RDONLY)) < 0)
-    {
-        perror("eroare deschidere fisier1");
-        exit(-1);
+#define BUFFER_SIZE 4096
+void scriere_snapchot(char *cale_director, char buff2[]){
+    int fd;
+    fd = open (cale_director,  O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
+    if((fd == -1)){
+        perror("Eroare la crearea fisierului de iesire\n");
+        exit(errno);
     }
-    if ((fd2 = open(file1, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)) < 0)
-    {
-        perror("eroare deschidere fisier2");
-        exit(-1);
-    }
-
-    while ((bytes_read1 = read(fd1, buf1, BUFFER)) > 0)
-    {
-        if ((bytes_write2 = write(fd2, buf1, BUFFER)) != bytes_read1)
-        {
-            perror("nu se poate realiza scrierea in fisierul 2");
-            exit(-1);
-        }
-    }
-
-    if (bytes_read1 < 0)
-    {
-        perror("Eroare la citirea fișierului1");
-        exit(EXIT_FAILURE);
-    }
-
-    // se inchid fisierele
-    if (close(fd1) < 0)
-    {
-        perror("nu se poate realiza inchiderea pentru fis1");
-        exit(-1);
-    }
-
-    if (close(fd2) < 0)
-    {
-        perror("nu se poate realiza inchiderea pentru fis2");
-        exit(-1);
-    }
+    if(write(fd,buff2,strlen(buff2)) < 0 ){
+    perror("eroare scriere in fisier\n");
+    exit(errno);
+   }
+   close(fd);
 }
 
-int compare_snaps(const char *snap1, const char *snap2)
-{
-
-    // strcpy(snap2, snap1);
-    //  prima data trebuie deschise ambele
-    //  le deschid doar pentru citire pentru ca deja le am create cu continut
-
-    int fd1, fd2;
-
-    if ((fd1 = open(snap1, O_RDONLY)) < 0)
-    {
-        perror("eroare deschide primu snap1");
-        exit(EXIT_FAILURE);
-    }
-
-    if ((fd2 = open(snap2, O_RDONLY)) < 0)
-    {
-        perror("eroare deschide primu snap1");
-        exit(EXIT_FAILURE);
-    }
-
-    ssize_t bytes_read1, bytes_read2;
-    char buf1[BUFFER];
-    char buf2[BUFFER];
-
-    while ((bytes_read1 = read(fd1, buf1, BUFFER)) > 0 && (bytes_read2 = read(fd2, buf2, BUFFER)) > 0)
-    {
-        if ((bytes_read1 != bytes_read2) || memcmp(buf1, buf2, bytes_read1) != 0)
-        {
-            perror("nu au acelasi continut ...1");
-            if (close(fd1) < 0)
-            {
-                perror("eroare inchidere fisier 1");
-                // return 1; //diferite
-            }
-            if (close(fd2) < 0)
-            {
-                perror("eroare inchidere fisier 1");
-                // return 1;
-            }
-
+int verificare_exista_snapchot_anterior(char *nume_dir_out, char *nume_snapchot){
+    DIR *dir = opendir(nume_dir_out);
+    if(dir == NULL){
+        perror("Eroare deschidere director\n");
+        exit(errno);
+    } 
+    struct dirent *intrare;
+    while( (intrare = readdir(dir)) != NULL){
+        if(strcmp(intrare->d_name,nume_snapchot) == 0 ){
+            //inseamna ca snapchotul pe care vreau sa l generez pentru argumentul dat in linie
+            //de comanda exista deja
             return 1;
         }
-
-        // verificare daca am citit tot din fisier
-        // read da return 0 daca s a ajuns la capat de fisier
     }
-
-    if ((bytes_read1 = read(fd1, buf1, BUFFER)) != (bytes_read2 = read(fd2, buf2, BUFFER)))
-    {
-        return 1;
-    }
-
-    if (close(fd1) < 0)
-    {
-        perror("eroare inchidere fisier 1");
-    }
-    if (close(fd2) < 0)
-    {
-        perror("eroare inchidere fisier 2");
-    }
-
     return 0;
 }
-
-void list_directory(const char *path, int fileD)
-{
-
-    // i have to open and test the directory
+int comparare_snapchot_anterior(const char *cale_relativa_snap_anterior, const char *buffer_actual){
+    int fd=0;//file descriptor snapchot anterior
+    int n;
+    char buffer[BUFFER_SIZE]="";
+    fd = open(cale_relativa_snap_anterior, O_RDONLY);
+    if(fd == -1){
+        perror("eroare deschidere snapchot anterior\n");
+        exit(errno);
+    }
+    n = read(fd, buffer, BUFFER_SIZE-1);
+    if( n == -1){
+        perror("nu s a putut citi din snapchot\n");
+        exit(errno);
+    }
+   if(strcmp(buffer,buffer_actual) == 0){//inseamna ca nu s a facut nicio modificare
+    return 0;
+   }
+   else{
+    
+    return 1;//inseamna ca s a facut o modificare si vreau sa se inlocuiasca snapchotul anterior
+   }
+   close(fd);
+   //are vreun efect chestia asta  ???
+}
+void parcurgere_director(char *nume_director, int nivel, int *inode_number, int contor , char buffer_auxiliar[]){
+    DIR *dir = opendir(nume_director);
+    if(dir == NULL){
+        perror("Eroare deschidere director\n");
+        exit(errno);
+    } 
     struct stat info;
+    char cale_relativa[512] = "",spatii[100] = "";
+    struct dirent *intrare;
+    char buffer[BUFFER_SIZE]="";
 
-    // int fileD;
+    memset(spatii, ' ', 3*nivel);
+    spatii[2*nivel]='\0';
 
-    if (lstat(path, &info) < 0)
-    {
-        perror("the function lstat doesn t work 1\n");
-        exit(-1);
+    int val_lstat;
+    val_lstat = lstat(nume_director,&info);
+    if(val_lstat == -1){
+        perror("Nu s-au putut afla atributele fisierului\n");
+        exit(errno);
     }
-
-    // S_ISDIR = 1 -> true, adica avem director
-
-    if (S_ISDIR(info.st_mode))
-    {
-        fprintf(stdout, "we receive a directory\n");
+    if(contor == 0){
+        //inseamna ca asta este prima iteratie
+        //deci acum vreau sa mi aflu inode-ul directorului
+        *inode_number = info.st_ino;
     }
-    else
-    {
-        if (S_ISREG(info.st_mode))
-        {
-            fprintf(stdout, "we don t receive a directory, but is a REGULAR FILE\n");
-            exit(-1);
+    snprintf(buffer,sizeof(buffer),"%s DIR %s\t: Dimensiune %ld bytes , inode number %ld , Time of last modification %s\n",spatii,nume_director,info.st_size, info.st_ino,ctime(&info.st_mtime));
+    strcat(buffer_auxiliar,buffer);
+    while( (intrare = readdir(dir) ) != NULL){
+        //printf("%s\n",intrare->d_name);
+        //intrare->d_name reprezinta numele fisierului/directorlui
+
+        if(strcmp(intrare->d_name,".") == 0 || (strcmp(intrare->d_name,"..") == 0)){
+            continue;
+            //adica daca avem .. sau . inseamna ca am dat de calea relativa sau absoluta
+            //si nu vreau sa afisez asta
+        }
+        snprintf(cale_relativa, sizeof(cale_relativa), "%s/%s", nume_director, intrare->d_name);
+        val_lstat = lstat(cale_relativa,&info);
+        if(val_lstat == -1){
+        perror("Nu s-au putut afla atributele fisierului\n");
+        exit(errno);
+        }
+        if(S_ISDIR(info.st_mode)){
+            parcurgere_director(cale_relativa, nivel + 3, inode_number, contor + 1, buffer_auxiliar);
+        }else if(S_ISLNK(info.st_mode)){
+            //sincera sa fiu, nu stiu daca trebuie sa verific si pentru link
+            //daca are drepturile lipsa
+            snprintf(buffer,sizeof(buffer)," %sLINK  %s\t: Dimensiune %ld bytes ,  inode number %ld , Time of last modification %s\n",spatii,cale_relativa,info.st_size, info.st_ino,ctime(&info.st_mtime));
+            strcat(buffer_auxiliar,buffer);
+        }
+        else if(S_ISREG(info.st_mode)){ 
+            
+        
+          if( !(( info.st_mode & S_IRWXU ) && ( info.st_mode & S_IRWXG ) && ( info.st_mode & S_IRWXO ) )){
+                printf(" \n nu am niciun drept \t %s \t %s\n",nume_director,cale_relativa);
+                pid_t pid;
+                int status;
+                if((pid=fork())<0)
+                {
+                    printf("Eroare la fork nepot\n");
+                    exit(1);
+                }
+                if(pid==0) /* procesul fiu--adica nepot */
+                {
+                   printf("am intrat aici\n\n");
+                   execl("/bin/bash","sh","verify_for_malitious.sh",cale_relativa,NULL);
+                   printf("Eroare la exec\n"); 
+                    /* Daca execlp s-a intors, inseamna ca programul
+                    nu a putut fi lansat in executie */
+                }
+                else /* procesul parinte--adica fiu */
+                {
+                    printf("Proces parinte\n");
+                    waitpid(pid,&status,0);
+                    exit(0);
+                }
+                //aici apelez exec
+                //aici imi creez si procesul nepot, oare ?
+                //cred ca da, deoarece nu pot sa apelez exec(), pt ca dupa procesul fiu isi pierde continuarea
+
+            }
+            snprintf(buffer,sizeof(buffer),"%s FILE %s\t: Dimensiune %ld bytes ,  inode number %ld , Time of last modification %s\n",spatii,cale_relativa,info.st_size, info.st_ino,ctime(&info.st_mtime));
+            strcat(buffer_auxiliar,buffer);
         }
     }
+    closedir(dir);
+}
+int verificare_director_argument_in_linia_de_comanda(char *nume_argument){
+    //returneaza 1 daca argumentul dat ca si argument functiei este director
+    //altfel returneaza 0
+    struct stat info;
+    int valoare_lstat;
 
-    // if is a directory, we have to open it
-
-    DIR *d1;
-
-    if ((d1 = opendir(path)) == NULL)
-    {
-        perror("we can t open the directory");
-        exit(-1);
+    valoare_lstat = lstat(nume_argument,&info);
+    if(valoare_lstat == -1){
+        perror("Nu s-au putut afla atributele fisierului\n");
+        exit(errno);
     }
+    if( S_ISDIR(info.st_mode)){
+        return 1;
+    }
+    else{
+        return 0;
+        }
+}
 
-    // if can open it, we read from it
+int main(int argc, char *argv[]){
 
-    struct dirent *dir;
+    char cale_director[256]="";
+    char snapchot_name[100];
+    int inode_number = 0;
+    char buffer_auxiliar[BUFFER_SIZE];//este buffer-ul in care imi stochez parcurgerea_directorului
 
-    char filePath[100];
+    pid_t pid ,wpid;
+    int status;
 
-    char buffer[1024];
+    if(argc > 13){
+        printf("Nu ati transmis numarul potrivit de argumente in linia de comanda\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    for(int i = 3 ; i < argc ; i++){
 
-    while ((dir = readdir(d1)) != NULL)
-    {
+        inode_number = 0;
+        strcpy(buffer_auxiliar,"");
+        //verific daca argumentul este director, daca nu, trec peste
+        if(verificare_director_argument_in_linia_de_comanda(argv[i]) == 1){//inseamna ca argumentul in linie de comanda este director
+            pid = fork();
+            if (pid == -1){
+                printf("eroare fork\n");
+                exit(1);
+            }
+            if(pid == 0){//cod fiu
+                parcurgere_director(argv[i],0, &inode_number, 0,buffer_auxiliar);
 
-        if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
-        {
+                sprintf(snapchot_name, "snapchot_%d.txt",inode_number);
+                strcpy(cale_director, argv[2]);
+                strcat(cale_director, "/");
+                strcat(cale_director,snapchot_name);
+                
+                if(verificare_exista_snapchot_anterior(argv[2],snapchot_name) == 0){//inseamna ca noul snapchot nu exista in directorul de output
+                    //si atunci il creez
+                    scriere_snapchot(cale_director,buffer_auxiliar);
+                    printf("nu exista inainte de acest apel\n");
+                }else{
+                    //compar ce exista deja in snapchot_name cu buffer_auxiliar pe care l am obtinut prin apelarea functiei parcurgere_director(...)
+                    if( (comparare_snapchot_anterior(cale_director,buffer_auxiliar) == 0) ){//inseamna ca nu s-a facut nicio modificare in snapchot
+                        printf("nu s a produs nicio modificare fata de snapchotul anterior\n");
+                        //continue;
+                    }
+                    else{
+                        scriere_snapchot(cale_director, buffer_auxiliar);
+                        printf("a existat o modificare\n");
+                    }
+                    printf("exista deja \n");
+                }
+                exit(0);
+            }
+        }
+        else{
+            printf("\nargumentul %s nu este un director !!\n",argv[i]);
             continue;
         }
-
-        sprintf(filePath, "%s/%s", path, dir->d_name);
-
-        // fac stat pe ce am primit
-
-        if (lstat(filePath, &info) < 0)
-        {
-            perror("the function lstat doesn t work 2\n");
-            exit(-1);
-        }
-
-        if (write(fileD, filePath, strlen(filePath)) < 0)
-        {
-
-            perror("error at writing the name of the file\n"); // we are writing the name of the directory or file
-            exit(-1);
-        }
-
-        // try to write the inode number
-        sprintf(buffer, "\nInode: %lu\n", info.st_ino);
-        if (write(fileD, buffer, strlen(buffer)) < 0)
-        {
-            perror("error at writing the number of the inode\n");
-            exit(-1);
-        }
-
-        // we have to write the dim in bytes
-
-        sprintf(buffer, "Number of bytes: %lu\n", info.st_size);
-        if (write(fileD, buffer, strlen(buffer)) < 0)
-        {
-            perror("error at writing of the number of the byte's file");
-            exit(-1);
-        }
-
-        // the last date when you modified the file
-
-        char mod_time[20];
-        strftime(mod_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&(info.st_mtime)));
-        sprintf(buffer, "Data ultimei modificari: %s\n", mod_time);
-
-        if (write(fileD, buffer, strlen(buffer)) < 0)
-        {
-            perror("error at last date when you modified the file\n");
-            exit(-1);
-        }
-
-        char *space = "\n";
-
-        if (write(fileD, space, strlen(space)) < 0)
-        {
-            perror("nu s a putut scrie in fisier");
-            exit(-1);
-        }
-
-        if (S_ISDIR(info.st_mode))
-            list_directory(filePath, fileD); // recurse into subdirectory
     }
 
-    if (closedir(d1) != 0)
-    {
-        perror("error at closing the directory");
-        exit(-1);
-    }
-}
-
-int main(int argc, char **argv)
-{
-    SnapInfo snaps[30];
-
-    for (int i = 0; i < argc; i++)
-    {
-
-        if (strcmp(argv[i], "-o") != 0)
-        {
-            strcpy(snaps[i].actualsnap, "");
-            strcpy(snaps[i].previoussnap, "");
-        }
-    }
-
-    // ./p dir0 dir1 .. dir9 -o dirout
-    if (argc > 13)
-    {
-        perror("we have too much arguments\n");
-        exit(-1);
-    }
-
-    //     //first, i have to find the out directory
-
-    int out = -1;
-    for (int i = 0; i < argc; i++)
-    {
-        if (strcmp(argv[i], "-o") == 0)
-        {
-            fprintf(stdout, "we find the out directoty\n");
-            out = i + 1;
-        }
-    }
-
-    if (out > 0 && out < argc)
-    {
-        fprintf(stdout, "the directory that is our OUTPUT is named %s\n", argv[out]);
-    }
-    else
-    {
-        fprintf(stderr, "-o not found or does not have a value\n");
-    }
-
-    for (int i = 1; i < argc; i++)
-    {
-        for (int j = i + 1; j < argc; j++)
-        {
-            if (strcmp(argv[i], argv[j]) == 0)
-            {
-                perror("NU ai dat bine argumnetele, EXISTA argumente ce se repeta\n");
-                exit(-1);
+    //proces parinte
+    for(int i = 3 ; i < argc ; i++){
+        if(verificare_director_argument_in_linia_de_comanda(argv[i]) == 1){
+            //doar daca argumentul este un director se creeaza un proces pentru el
+            //daca nu puneam aceasta conditie aparea mesajul : "waitpid: No child processes "
+            //dar facea totul corect in rest
+            wpid = wait(&status);
+            if (wpid == -1) {
+                    perror("waitpid");
+                    exit(EXIT_FAILURE);
             }
-            else
-            {
-                continue;
+            if(WIFEXITED(status)){
+            printf("Procesul cu PID %d s-a incheiat cu codul %d\n",wpid,WEXITSTATUS(status));//WEXITSTATUS ne da codul de retur, gen exit(0)
             }
-        }
-
-        if (strcmp(argv[i], "-o") != 0)
-        {
-            // if (snaps[i].actualsnap[0] != '\0')
-            // {
-            // printf("se face copierea\n");
-            // strcpy(snaps[i].previoussnap, snaps[i].actualsnap);
-            // copiere_snap(snaps[i].actualsnap, snaps[i].previoussnap);
-            //}
-            sprintf(snaps[i].actualsnap, "%s/%s.%d", argv[out], "snapshot", i); // aici pun argv[out] ca sa stie unde sa puna fisierele
-
-            int fileD = open(snaps[i].actualsnap, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IXUSR);
-            if (fileD < 0)
-            {
-                perror("nu s a putut deschide fisierul\n");
-                exit(-1);
+            else{
+                printf("Child %d ended abnormally\n", wpid);
+            }
             }
 
-            list_directory(argv[i], fileD); // pass the file descriptor to the function
-
-            if (close(fileD) < 0)
-            {
-                perror("nu s a putut inchide fisierul\n");
-                exit(-1);
-            }
-
-            if (snaps[i].previoussnap[0] != '\0')
-            {
-                copiere_snap(snaps[i].actualsnap, snaps[i].previoussnap);
-
-                printf("aici se face compararea\n");
-                if (compare_snaps(snaps[i].actualsnap, snaps[i].previoussnap) == 0)
-                {
-                    fprintf(stdout, "SNAPSHOT uri identice\n");
-                }
-                else
-                {
-                    fprintf(stdout, "snapshot urile NU sunt identice\n");
-                }
-
-                printf("se face copierea\n");
-                strcpy(snaps[i].previoussnap, snaps[i].actualsnap);
-
-                // }
-            }
-            else
-            {
-                break;
-            }
-        }
     }
-
         return 0;
+
 }
+    /*  IDEEA de lucru pt astazi este urmatoarea : 
+    E1) parcurg directorul de output snapchot cu snapchot                                                       DONE 
+    daca NU gasesc un snapchot cu numele identic 
+         imi creez snapchotul folosind functia scriere_snapchot(...)                                            
+                    altfel
+         fac verificare de continut intre buffer_auxiliar si continutul snaphotului anterior   
+    */
+
+    
+    //deci eu vreau sa imi creez un snapchot in output
+    //pentru fiecare argument in linia de comanda
+    //./p -o output dir1 dir2 dir3 dir4 dir5 dir6 dir7 dir8 dir9
+    //output continut prima iteratie
+    //snapchot_inode_dir1 snapchot_inode_dir2 snapchot_inode_dir3 etc
+
+    //first step
+    //cum imi pun pentru un singur argument in linia de comanda             DONE
+    //fisierul snapchot in directorul transmis ca si parametru
+
+
+
+    //second step
+    //acum vreau sa imi generez un snapchot pentru fiecare argument in linia de comanda         DONE
+    //snapchot caruia vreau sa ii dau numele "snapchot_inodeNumber.txt"
+
+
+    //third step-efectiv nu stiu cum sa ma apuc
+    //sa compar snapshoturile intre ele...
+
+    //first step
+    //verific in directorul de output daca mai exista fisierul meu de snapchot
+    //NU - scriere_snapchot(...)
+    //DA- acum trb sa verific continutul
+    //E1) caut in directorul output fisierul cu inode-ul meu                                     DONE
+    //E2)compar continutul cu strcmp()
+    //strcmp(snaphot_anterior,buffer) == 0 => nu modific
+    //strcmp(snapchot_anterior,buffer) !=0 => scriere_snapchot
+
+
+    /*
+    trb sa verific ca argumentul din linia de comanda este director                                    DONE
+
+    cand lansez in executie cu exec , eu nu am drepturi asupra fisierului meu
+    deci in script prima oara ii dau drepturi
+
+    trb sa mut in codul meu din C fisierul din directorul transmis ca parametru in linia de comanda,
+    in directorul de fisiere_malitioase
+    cu rename
+    si dupa il sterg din directorul meu cu remove
+
+    inf circula prin pipe nepot-fiu
+    inf circula prin cod de return fiu-parinte
+
+    */
+
+    //E1) trb sa verific daca fisierul are toate drepturile de access lipsa
+    //gen chmod 000                                                                                     DONE
+    
+
+    /*
+    PENTRU fisierele gasite fara niciun drept, trebuie sa le verific 
+    folosind fisierul bash verify_for_malicious.sh
+    --trb sa folosesc exec si asa mai departe
+                                                                                                        WORKING ON IT
+    PENTRU fisierele descoperite ca fiind malitioase, trb sa le mut 
+    intr-un director separat numit : "izolated_director" --- chestia asta face fiul
+
+    procesul parinte se ocupa doar cu codurile de retur, adica in fiu pun exec(nr_fisiere_malitioase)
+    */
+
+
+
+
+
+    //chestii de finete
+    //1)ar trb sa vedem daca argumentele transmise ca parametrii sunt directoare                                DONE
+
+    //2) ar trb sa verificam daca output este un director + sa verific daca directorul output exista
+    //sau trb sa l creez eu
+
+    //sa ma gandesc sa fisierul de output se poate sa nu fie in working directory-SO-proiect
+    //ci se poate sa fie in /bin/home si atunci trb sa fac
+
+    //strcpy()
+    //strcpy
+
+
+    //16.04.2024
+    //trb sa mi adaug cate un proces pentru fiecare arg in linie de comanda
+    //recomandare prof : sa fac wait de n ori la final in proces parinte (adica cate snapchoturi imi creez atatea)
+    //wait-uri trb sa am
+
+    //cand pun un mesaj de eroare, neaparat trb sa se termine cu "\n", deoarece buffer-ul poate sa nu fie umplut
+    //si asta inseamna ca se va afisa mesajul de eroare necorespunzator, cel mai probabil la final
+
+    //folosesc de fiecare data wait ?       DA, DEOARECE EU ASTEPT DUPE FIECARE COPIL SA SE TERMINE
+    //si dupa ce proces astept ?            PARALELISM
+    //trb sa folosesc si  exec pentru ca eu nu am nevoie ca procesul fiu sa aiba si partea de verificare a ---- ASTA NU TREBUIE
+    //a nr de argumente date in linia de comanda
+/*
+    cerinta pe sapt asta
+    
+*/
