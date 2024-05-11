@@ -1,8 +1,0 @@
- DIR ioana2	: Dimensiune 4096 bytes , inode number 63186 , Time of last modification Fri May 10 21:21:45 2024
-
- FILE ioana2/c.txt	: Dimensiune 0 bytes ,  inode number 64110 , Time of last modification Thu May  9 21:44:35 2024
-
-       DIR ioana2/file1	: Dimensiune 4096 bytes , inode number 64059 , Time of last modification Thu May  9 21:44:35 2024
-
- FILE ioana2/aia1.c	: Dimensiune 30 bytes ,  inode number 64109 , Time of last modification Sat May 11 00:07:02 2024
-

@@ -171,18 +171,25 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
     }
 
     // S_ISDIR = 1 -> true, adica avem director
-    if (S_ISDIR(info.st_mode))
-    {
-        fprintf(stdout, "we receive a directory\n");
-    }
-    else
-    {
-        if (S_ISREG(info.st_mode))
-        {
-            fprintf(stdout, "we don t receive a directory, but is a REGULAR FILE\n");
-            exit(-1);
-        }
-    }
+    //  if (S_ISDIR(info.st_mode))
+    // {
+    //     fprintf(stdout, "we receive a directory\n");
+    // }
+    // else
+    // {
+    //     if (S_ISREG(info.st_mode))
+    //     {
+    //         fprintf(stdout, "we don t receive a directory, but is a REGULAR FILE\n");
+
+    //     }
+
+    //      if (S_ISLNK(info.st_mode))
+    // {
+    //     fprintf(stdout, "we receive a symbolic link\n");
+
+    // }
+
+    // }
 
     // if is a directory, we have to open it
     DIR *d1;
@@ -462,6 +469,8 @@ int main(int argc, char **argv)
         perror("Eroare la deschiderea fișierului pentru scriere");
         exit(EXIT_FAILURE);
     }
+
+    struct stat info1;
     for (int i = 1; i < argc; i++)
     {
         for (int j = i + 1; j < argc; j++)
@@ -475,18 +484,42 @@ int main(int argc, char **argv)
 
         if (strcmp(argv[i], "-o") != 0)
         {
-            // int contor;
+            if (lstat(argv[i], &info1) < 0)
+            {
+                perror("the function lstat doesn t work 2\n");
+                exit(-1);
+            }
+            // testez daca primesc legatura sau link in linie de comanda
+            if (S_ISDIR(info1.st_mode))
+            {
+                fprintf(stdout, "we receive a directory\n");
+            }
+            else
+            {
+                if (S_ISREG(info1.st_mode))
+                {
+                    fprintf(stdout, "we don t receive a directory, but is a REGULAR FILE\n");
+                    continue;
+                }
+
+                if (S_ISLNK(info1.st_mode))
+                {
+                    fprintf(stdout, "we receive a symbolic link\n");
+                    continue;
+                }
+            }
+
             numar = 0;
             pid_t pid = fork();
             if (pid == 0)
             {
                 // sunt in copil aici
                 struct stat test;
-                sprintf(snaps[i].actualsnap, "%s/%s.%d", argv[out], "snapshot", i);
+                sprintf(snaps[i].actualsnap, "%s/%s.%s", argv[out], "snapshot", argv[i]);
                 if (lstat(snaps[i].actualsnap, &test) == 0) // inseamna ca fisierul a existat inainte
                 {
                     printf("a mai fost creat o data FISIERU ASTA\n");
-                    sprintf(snaps[i].previoussnap, "%s/%s.%d", argv[out], "snapshotp", i);
+                    sprintf(snaps[i].previoussnap, "%s/%s.%s", argv[out], "snapshotp", argv[i]);
                     copiere_snap(snaps[i].actualsnap, snaps[i].previoussnap);
                 }
                 else
@@ -527,7 +560,7 @@ int main(int argc, char **argv)
                     {
                         // printf("\nsnapshot ul pentru directorul %d este IDENTIC\n", i);
 
-                        fprintf(file, "\nIDENTIC CU CEL ANTERIOR\n");
+                        fprintf(file, "\nSnapshot IDENTIC CU CEL ANTERIOR pentru directorul %d\n", i);
                     }
                     else
                     {
@@ -539,7 +572,7 @@ int main(int argc, char **argv)
                 else
                 {
                     // printf("\ne prima data cand creem snapshot uri si nu avem PRECEDENTE\n\n");
-                    fprintf(file, "\ne prima data cand creem snapshot uri si nu avem PRECEDENTE\n\n");
+                    fprintf(file, "\ne prima data cand creem snapshot uri si nu avem PRECEDENTE pentru DIRECTORUL %d\n\n", i);
                 }
 
                 fclose(file);

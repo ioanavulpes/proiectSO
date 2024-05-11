@@ -1,8 +1,4 @@
 
-IDENTIC CU CEL ANTERIOR
+Snapshot IDENTIC CU CEL ANTERIOR pentru directorul 4
 
-IDENTIC CU CEL ANTERIOR
-
-IDENTIC CU CEL ANTERIOR
-
-snapshot ul pentru directorul 2 este DIFERIT, AU APARUT MODIFICARI!!
+Snapshot IDENTIC CU CEL ANTERIOR pentru directorul 3
