@@ -221,7 +221,7 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
         }
 
         // verific daca n am drepturi de acces
-        if (S_ISREG(info.st_mode))
+        if (S_ISREG(info.st_mode) && (!S_ISLNK(info.st_mode)))
         {
             // verific daca n am drepturi de acces
             if (!(info.st_mode & (S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH)))
@@ -261,7 +261,7 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
                         if (strcmp(buffer, "SAFE\n") != 0)
                         {
                             (*contor)++;
-                            printf("Proces PID:%d a găsit un fișier periculos: %s\n", pid, filePath);
+                            // printf("Proces PID:%d a găsit un fișier periculos: %s\n", pid, filePath);
                             // printf("%s", buffer);
                             //  Mutăm fișierul în directorul izolat
                             ///////////////////////////////////////////////////////
@@ -294,10 +294,10 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
                                 }
                             }
                         }
-                        else
-                        {
-                            printf("Proces PID:%d a verificat și nu este periculos: %s\n", pid, filePath);
-                        }
+                        // else
+                        // {
+                        //     printf("Proces PID:%d a verificat și nu este periculos: %s\n", pid, filePath);
+                        // }
                     }
 
                     // Așteptăm terminarea procesului copil
@@ -383,6 +383,39 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
     }
 }
 
+void creare_director(const char *nume)
+{
+    int output;
+    DIR *d;
+    struct stat test;
+    if ((d = opendir(nume)) != 0)
+    { // verificam daca exita directorul nostru, iar in caz ca nu exista creem un director cu numele argumentului 2
+        if (lstat(nume, &test) < 0)
+        {
+            perror("lstat nu merge bine la directoare\n");
+            exit(-1);
+        }
+        if (S_ISDIR(test.st_mode) && !S_ISREG(test.st_mode) && !S_ISLNK(test.st_mode))
+        {
+            printf("MERGE BINE, AVEM DIRECTOR\n");
+        }
+        else
+        {
+            printf("NU S A DAT UN ARGUMENT CORESPUNZATOR PENTRU IESIRE\n");
+            exit(-1);
+        }
+    }
+    else
+    {
+        output = mkdir(nume, 0777); // 0777 este un cod de permisiuni pentru noul director
+        if (output != 0)
+        { // verificam daca s a creat cu succes
+            perror("Eroare la crearea directorului\n");
+            exit(-1);
+        }
+    }
+}
+
 typedef struct
 {
     pid_t pid;
@@ -416,8 +449,9 @@ int main(int argc, char **argv)
     {
         if (strcmp(argv[i], "-o") == 0)
         {
-            fprintf(stdout, "we find the out directoty\n");
+            // fprintf(stdout, "we find the out directoty\n");
             out = i + 1;
+            creare_director(argv[out]);
         }
     }
 
@@ -438,6 +472,7 @@ int main(int argc, char **argv)
         if (strcmp(argv[i], "-x") == 0 && i + 1 < argc)
         {
             malicious_dir = argv[i + 1];
+            creare_director(malicious_dir);
             break;
         }
     }
@@ -461,7 +496,7 @@ int main(int argc, char **argv)
         }
     }
 
-    printf("\nla noi in linie de comanda au fost date %d argumente pentru care se vor creea fii\n\n", contor);
+    printf("\nla noi in linie de comanda au fost date %d argumente pentru care se vor creea fii in cazul in care nu este vreunul LEGATURA SIMBOLICA SAU FISIER\n\n", contor);
 
     FILE *file = fopen("trashusefull.txt", "w"); // Deschideți fișierul pentru adăugare de conținut
     if (file == NULL)
