@@ -1,4 +1,9 @@
 
-Snapshot IDENTIC CU CEL ANTERIOR pentru directorul 2
+First time when we create SNAPSHOTS for the directory 2
 
-Snapshot IDENTIC CU CEL ANTERIOR pentru directorul 1
+
+First time when we create SNAPSHOTS for the directory 3
+
+
+First time when we create SNAPSHOTS for the directory 1
+

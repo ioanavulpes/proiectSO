@@ -35,12 +35,12 @@ void copiere_snap(const char *file1, const char *file2)
     char buf1[BUFFER];
     if ((fd1 = open(file1, O_RDONLY)) < 0)
     {
-        perror("eroare deschidere fisier1");
+        perror("error at opening fisier1");
         exit(-1);
     }
     if ((fd2 = open(file2, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)) < 0)
     {
-        perror("eroare deschidere fisier2");
+        perror("error at opening fisier2");
         exit(-1);
     }
 
@@ -48,27 +48,27 @@ void copiere_snap(const char *file1, const char *file2)
     {
         if ((bytes_write2 = write(fd2, buf1, bytes_read1)) != bytes_read1)
         {
-            perror("nu se poate realiza scrierea in fisierul 2");
+            perror("we can t write into fisierul 2");
             exit(-1);
         }
     }
 
     if (bytes_read1 < 0)
     {
-        perror("Eroare la citirea fișierului1");
+        perror("error at reading fișier1");
         exit(EXIT_FAILURE);
     }
 
     // se inchid fisierele
     if (close(fd1) < 0)
     {
-        perror("nu se poate realiza inchiderea pentru fis1");
+        perror("we can t close fis1");
         exit(-1);
     }
 
     if (close(fd2) < 0)
     {
-        perror("nu se poate realiza inchiderea pentru fis2");
+        perror("we can t close fis2");
         exit(-1);
     }
 }
@@ -82,13 +82,13 @@ int compare_snaps(const char *snap1, const char *snap2)
     int fd1, fd2;
     if ((fd1 = open(snap1, O_RDONLY)) < 0)
     {
-        perror("eroare deschide primu snap1");
+        perror("Error at opening");
         exit(EXIT_FAILURE);
     }
 
     if ((fd2 = open(snap2, O_RDONLY)) < 0)
     {
-        perror("eroare deschide primu snap1");
+        perror("Error at opening");
         exit(EXIT_FAILURE);
     }
 
@@ -100,16 +100,16 @@ int compare_snaps(const char *snap1, const char *snap2)
     {
         if ((bytes_read1 != bytes_read2) || memcmp(buf1, buf2, bytes_read1) != 0)
         {
-            perror("nu au acelasi continut ...1");
+            perror("We don t have the same content...1");
             if (close(fd1) < 0)
             {
-                perror("eroare inchidere fisier 1");
+                perror("error at closing file");
                 // return 1; //diferite
             }
 
             if (close(fd2) < 0)
             {
-                perror("eroare inchidere fisier 1");
+                perror("error at closing file");
                 // return 1;
             }
             return 1;
@@ -125,12 +125,12 @@ int compare_snaps(const char *snap1, const char *snap2)
 
     if (close(fd1) < 0)
     {
-        perror("eroare inchidere fisier 1");
+        perror("error at closing file");
     }
 
     if (close(fd2) < 0)
     {
-        perror("eroare inchidere fisier 2");
+        perror("error at closing file");
     }
 
     return 0;
@@ -303,7 +303,7 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
                     // Așteptăm terminarea procesului copil
                     int status;
                     waitpid(pid, &status, 0);
-                    printf("Procesul copil s-a încheiat cu PID:%d și status:%d\n", pid, WEXITSTATUS(status));
+                    printf("The child process with PID %d found a file malitious and have the status:%d\n", pid, WEXITSTATUS(status));
                 }
                 else
                 {
@@ -368,7 +368,7 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
         char *space = "\n";
         if (write(fileD, space, strlen(space)) < 0)
         {
-            perror("nu s a putut scrie in fisier");
+            perror("We can t write into file");
             exit(-1);
         }
 
@@ -392,16 +392,16 @@ void creare_director(const char *nume)
     { // verificam daca exita directorul nostru, iar in caz ca nu exista creem un director cu numele argumentului 2
         if (lstat(nume, &test) < 0)
         {
-            perror("lstat nu merge bine la directoare\n");
+            perror("lstat doesn t work well for directories\n");
             exit(-1);
         }
         if (S_ISDIR(test.st_mode) && !S_ISREG(test.st_mode) && !S_ISLNK(test.st_mode))
         {
-            printf("MERGE BINE, AVEM DIRECTOR\n");
+            printf("WORK WELL, WE HAVE A DIRECTORY FOR OUTPUT\n");
         }
         else
         {
-            printf("NU S A DAT UN ARGUMENT CORESPUNZATOR PENTRU IESIRE\n");
+            printf("WE DON RECEIVE A GOOD ARGUMENT FOR THE OUTPUT CAUSE IT S NOT A DIRECTORY\n");
             exit(-1);
         }
     }
@@ -410,7 +410,7 @@ void creare_director(const char *nume)
         output = mkdir(nume, 0777); // 0777 este un cod de permisiuni pentru noul director
         if (output != 0)
         { // verificam daca s a creat cu succes
-            perror("Eroare la crearea directorului\n");
+            perror("Error at creating the directory\n");
             exit(-1);
         }
     }
@@ -476,7 +476,7 @@ int main(int argc, char **argv)
             break;
         }
     }
-    printf("director pt alea RELE este %s", malicious_dir);
+    printf("The directory for the malitious files is named %s", malicious_dir);
     if (malicious_dir == NULL)
     {
         fprintf(stderr, "No malicious directory specified\n");
@@ -501,7 +501,7 @@ int main(int argc, char **argv)
     FILE *file = fopen("trashusefull.txt", "w"); // Deschideți fișierul pentru adăugare de conținut
     if (file == NULL)
     {
-        perror("Eroare la deschiderea fișierului pentru scriere");
+        perror("Error at opening the file that we have for the writing");
         exit(EXIT_FAILURE);
     }
 
@@ -512,7 +512,7 @@ int main(int argc, char **argv)
         {
             if (strcmp(argv[i], argv[j]) == 0)
             {
-                perror("NU ai dat bine argumnetele, EXISTA argumente ce se repeta\n");
+                perror("WE have problems because some ARGUMENTS is repeating\n");
                 exit(-1);
             }
         }
@@ -553,13 +553,13 @@ int main(int argc, char **argv)
                 sprintf(snaps[i].actualsnap, "%s/%s.%s", argv[out], "snapshot", argv[i]);
                 if (lstat(snaps[i].actualsnap, &test) == 0) // inseamna ca fisierul a existat inainte
                 {
-                    printf("a mai fost creat o data FISIERU ASTA\n");
+                    printf("This SNAPSHOT was created before\n");
                     sprintf(snaps[i].previoussnap, "%s/%s.%s", argv[out], "snapshotp", argv[i]);
                     copiere_snap(snaps[i].actualsnap, snaps[i].previoussnap);
                 }
                 else
                 {
-                    printf("e prima data cand se creeaza\n");
+                    printf("First time when we create this SNAPSHOT\n");
                 }
 
                 // printf("\n\n!!!NUMARUL de fisiere CORUPTE in directorul %s este: %d\n", argv[i], numar);
@@ -569,17 +569,17 @@ int main(int argc, char **argv)
                 int fileD = open(snaps[i].actualsnap, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IXUSR);
                 if (fileD < 0)
                 {
-                    perror("nu s a putut deschide fisierul\n");
+                    perror("we can t open this file\n");
                     exit(-1);
                 }
 
                 list_directory(argv[i], fileD, malicious_dir, &numar); // pass the file descriptor to the function
-                printf("\n\n!!!NUMARUL de fisiere CORUPTE in directorul %s este: %d\n", argv[i], numar);
+                printf("\n\n!!!For the directory %s, we have %d malitious files\n", argv[i], numar);
 
                 printf("SNAPSHOT FOR DIRECTORY %d IS SUCCESFULLY CREATED\n\n", i);
                 if (close(fileD) < 0)
                 {
-                    perror("nu s a putut inchide fisierul\n");
+                    perror("can t close the file\n");
                     exit(-1);
                 }
 
@@ -594,20 +594,20 @@ int main(int argc, char **argv)
                     if (compare_snaps(snaps[i].actualsnap, snaps[i].previoussnap) == 0)
                     {
                         // printf("\nsnapshot ul pentru directorul %d este IDENTIC\n", i);
-
-                        fprintf(file, "\nSnapshot IDENTIC CU CEL ANTERIOR pentru directorul %d\n", i);
+                        //Snapshot IDENTIC CU CEL ANTERIOR pentru directorul
+                        fprintf(file, "\nSnapshot IDENTICAL to the previous one %d\n", i);
                     }
                     else
                     {
                         // printf("\nsnapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!!\n", i);
-
-                        fprintf(file, "\nsnapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!!\n", i);
+                        //snapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!
+                        fprintf(file, "\nSnapshot for the directory %d is different, we have MODIFICATIONS!!\n", i);
                     }
                 }
                 else
                 {
                     // printf("\ne prima data cand creem snapshot uri si nu avem PRECEDENTE\n\n");
-                    fprintf(file, "\ne prima data cand creem snapshot uri si nu avem PRECEDENTE pentru DIRECTORUL %d\n\n", i);
+                    fprintf(file, "\nFirst time when we create SNAPSHOTS for the directory %d\n\n", i);
                 }
 
                 fclose(file);
@@ -620,7 +620,7 @@ int main(int argc, char **argv)
             }
             else
             {
-                fprintf(stderr, "eroare la FORK()");
+                fprintf(stderr, "error at FORK()");
                 exit(EXIT_FAILURE);
             }
         }
