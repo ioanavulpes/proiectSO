@@ -313,63 +313,67 @@ void list_directory(const char *path, int fileD, const char *safe, int *contor)
             }
         }
 
-        if (write(fileD, filePath, strlen(filePath)) < 0)
+        if (S_ISREG(info.st_mode) && (!S_ISLNK(info.st_mode)))
         {
-            perror("error at writing the name of the file\n"); // we are writing the name of the directory or file
-            exit(-1);
-        }
 
-        // try to write the inode number
-        sprintf(buffer, "\nInode: %lu\n", info.st_ino);
-        if (write(fileD, buffer, strlen(buffer)) < 0)
-        {
-            perror("error at writing the number of the inode\n");
-            exit(-1);
-        }
+            if (write(fileD, filePath, strlen(filePath)) < 0)
+            {
+                perror("error at writing the name of the file\n"); // we are writing the name of the directory or file
+                exit(-1);
+            }
 
-        // we write the permission
+            // try to write the inode number
+            sprintf(buffer, "\nInode: %lu\n", info.st_ino);
+            if (write(fileD, buffer, strlen(buffer)) < 0)
+            {
+                perror("error at writing the number of the inode\n");
+                exit(-1);
+            }
 
-        char *text = "The PERMISSIONS are:\n";
-        if (write(fileD, text, strlen(text)) < 0)
-        {
-            perror("error at writing of the number of the byte's file");
-            exit(-1);
-        }
+            // we write the permission
 
-        getPermissionsString(info.st_mode, buffer);
+            char *text = "The PERMISSIONS are:\n";
+            if (write(fileD, text, strlen(text)) < 0)
+            {
+                perror("error at writing of the number of the byte's file");
+                exit(-1);
+            }
 
-        if (write(fileD, buffer, strlen(buffer)) < 0)
-        {
-            perror("error at writing of the number of the byte's file");
-            exit(-1);
-        }
+            getPermissionsString(info.st_mode, buffer);
 
-        // we have to write the dim in bytes
-        sprintf(buffer, "\nNumber of bytes: %lu\n", info.st_size);
+            if (write(fileD, buffer, strlen(buffer)) < 0)
+            {
+                perror("error at writing of the number of the byte's file");
+                exit(-1);
+            }
 
-        if (write(fileD, buffer, strlen(buffer)) < 0)
-        {
-            perror("error at writing of the number of the byte's file");
-            exit(-1);
-        }
+            // we have to write the dim in bytes
+            sprintf(buffer, "\nNumber of bytes: %lu\n", info.st_size);
 
-        // the last date when you modified the file
-        char mod_time[20];
-        strftime(mod_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&(info.st_mtime)));
-        sprintf(buffer, "Last modify: %s\n", mod_time);
+            if (write(fileD, buffer, strlen(buffer)) < 0)
+            {
+                perror("error at writing of the number of the byte's file");
+                exit(-1);
+            }
 
-        if (write(fileD, buffer, strlen(buffer)) < 0)
-        {
-            perror("error at last date when you modified the file\n");
-            exit(-1);
-        }
+            // the last date when you modified the file
+            char mod_time[20];
+            strftime(mod_time, 20, "%Y-%m-%d %H:%M:%S", localtime(&(info.st_mtime)));
+            sprintf(buffer, "Last modify: %s\n", mod_time);
 
-        // ca sa mi puna space dupa ce a scris info despre in fisier si vine recursiv altu
-        char *space = "\n";
-        if (write(fileD, space, strlen(space)) < 0)
-        {
-            perror("We can t write into file");
-            exit(-1);
+            if (write(fileD, buffer, strlen(buffer)) < 0)
+            {
+                perror("error at last date when you modified the file\n");
+                exit(-1);
+            }
+
+            // ca sa mi puna space dupa ce a scris info despre in fisier si vine recursiv altu
+            char *space = "\n";
+            if (write(fileD, space, strlen(space)) < 0)
+            {
+                perror("We can t write into file");
+                exit(-1);
+            }
         }
 
         if (S_ISDIR(info.st_mode))
@@ -574,7 +578,7 @@ int main(int argc, char **argv)
                 }
 
                 list_directory(argv[i], fileD, malicious_dir, &numar); // pass the file descriptor to the function
-                printf("\n\n!!!For the directory %s, we have %d malitious files\n", argv[i], numar);
+                printf("\n\n!!!For the directory %s, we have %d malitious file\n", argv[i], numar);
 
                 printf("SNAPSHOT FOR DIRECTORY %d IS SUCCESFULLY CREATED\n\n", i);
                 if (close(fileD) < 0)
@@ -594,13 +598,13 @@ int main(int argc, char **argv)
                     if (compare_snaps(snaps[i].actualsnap, snaps[i].previoussnap) == 0)
                     {
                         // printf("\nsnapshot ul pentru directorul %d este IDENTIC\n", i);
-                        //Snapshot IDENTIC CU CEL ANTERIOR pentru directorul
+                        // Snapshot IDENTIC CU CEL ANTERIOR pentru directorul
                         fprintf(file, "\nSnapshot IDENTICAL to the previous one %d\n", i);
                     }
                     else
                     {
                         // printf("\nsnapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!!\n", i);
-                        //snapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!
+                        // snapshot ul pentru directorul %d este DIFERIT, AU APARUT MODIFICARI!
                         fprintf(file, "\nSnapshot for the directory %d is different, we have MODIFICATIONS!!\n", i);
                     }
                 }
